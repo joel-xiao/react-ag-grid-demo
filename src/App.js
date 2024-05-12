@@ -5,8 +5,6 @@ import React, {
   useState,
 } from "react";
 
-import './App.css';
-
 import { GridExample } from './ag-grid';
 
 function App() {
@@ -24,6 +22,11 @@ function App() {
         }, 1000) 
       });
   }, []);
+
+
+  const onAddRows = () => {
+    gridRef.current?.addRows(rowData);
+  }
 
   const onSelectionChanged = (event) => {
     console.log(event.api.getSelectedRows())
@@ -56,6 +59,7 @@ function App() {
 
   return (
     <div className="App">
+      <button onClick={onAddRows}> Add Rows</button>
       <GridExample
         ref={gridRef}
         style={gridStyle}
