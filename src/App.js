@@ -18,7 +18,7 @@ function App() {
         setRowData(data);
 
         setTimeout(() => {
-          gridRef.current?.addRows(data);
+          // gridRef.current?.addRows(data);
         }, 1000) 
       });
   }, []);
@@ -35,12 +35,12 @@ function App() {
   const gridStyle = useMemo(() => ({ width: "100%", height: '90vh' }), []);
 
   const [columnDefs] = useState([
-    { field: "country", checkboxSelection: true, headerCheckboxSelection: true, rowGroup: true, hide: true}, 
-    { field: "year", headerName:'年', unSortIcon: true },
+    { field: "country", checkboxSelection: true, headerCheckboxSelection: true, rowCustomGroup: true, hide: true}, 
+    { field: "year", headerName:'年', rowCustomGroup: true, hide: true },
     { field: "sport" },
-    { field: "gold" },
-    { field: "silver" },
-    { field: "bronze" },
+    { field: "gold", rowSum: true },
+    { field: "silver", rowSum: true  },
+    { field: "bronze", rowSum: true  },
   ]);
 
   const defaultColDef = useMemo(() => {
@@ -52,11 +52,8 @@ function App() {
   const autoGroupColumnDef = useMemo(() => {
     return {
       headerName: '组',
-      field: 'group',
-      minWidth: 200,
     };
   }, []);
-
   return (
     <div className="App">
       <button onClick={onAddRows}> Add Rows</button>
