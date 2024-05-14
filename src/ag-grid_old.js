@@ -5,10 +5,18 @@ import React, {
   useImperativeHandle,
 } from "react";
 
-import {AgGridReact} from 'ag-grid-react';
+import { AgGridReact } from 'ag-grid-react'; // React Data Grid Component
+import "ag-grid-community/styles/ag-grid.css"; // Mandatory CSS required by the grid
+import "ag-grid-community/styles/ag-theme-quartz.css"; // Optional Theme applied to the grid
 
-import 'ag-grid-community/dist/styles/ag-grid.css';
-import 'ag-grid-community/dist/styles/ag-theme-balham.css';
+// import { AgGridReact } from '@ag-grid-community/react';
+// import "ag-grid-community/styles/ag-grid.css";
+// import "ag-grid-community/styles/ag-theme-quartz.css"; 
+
+// import { ModuleRegistry, } from "@ag-grid-community/core";
+// import { ClientSideRowModelModule } from "@ag-grid-community/client-side-row-model";
+// import { RowGroupingModule } from "@ag-grid-enterprise/row-grouping";
+// ModuleRegistry.registerModules([ClientSideRowModelModule]);
 
 export function parseData(data, columnDefs = []) {
   const resultMap = new Map();
@@ -16,6 +24,7 @@ export function parseData(data, columnDefs = []) {
   for (let item of data) {
     const rootGroup = resultMap;
     let currentGroup = rootGroup;
+    let prevGroup = null;
     let lastColumn = null;
 
     for (let column of columnDefs) {
@@ -26,14 +35,15 @@ export function parseData(data, columnDefs = []) {
       } 
       
       lastColumn = column;
+      prevGroup = currentGroup;
       currentGroup = currentGroup.get(item[column.field]);
     }
 
-    let rows = currentGroup.get(item[lastColumn.field]); 
+    let rows = prevGroup.get(item[lastColumn.field]); 
     if (!Array.isArray(rows)) rows = [];
 
     rows.push(item);
-    currentGroup.set(item[lastColumn.field], rows);
+    prevGroup.set(item[lastColumn.field], rows);
   };
   
   function parseGroup(groupMap, children = [], parent) {
@@ -48,15 +58,8 @@ export function parseData(data, columnDefs = []) {
         children.push(group);
         parseGroup(value, group.children, group);
 
-        for (let row of group.children) {
-          for (let column of columnDefs) {
-            if (!column.rowSum) continue;
-            if (!group[column.field]) group[column.field] = 0;
-            group[column.field] += row[column.field];
-          }
-        }
-
       } else {
+
         for (let row of value) {
           children.push(row);
           
@@ -65,6 +68,7 @@ export function parseData(data, columnDefs = []) {
             if (!parent[column.field]) parent[column.field] = 0;
             parent[column.field] += row[column.field];
           }
+
         }
       }
     }
@@ -78,50 +82,32 @@ export function parseData(data, columnDefs = []) {
 export const GridExample = React.forwardRef((props, ref) => {
   let { style, rowData, columnDefs, defaultColDef, autoGroupColumnDef, onGridReady, onSelectionChanged, getRowId } = props;
   const gridRef = useRef(null);
-  const gridRowData = parseData(rowData, columnDefs);
 
   useImperativeHandle(ref, () => ({
     addRows(newRows, addIndex) {
-      addGroup(gridRowData, newRows);
-      function addGroup (gridRowData, newRows) {
-        for (let row of newRows) {
-          let currentGroup = gridRowData;
-          for ( let column of columnDefs) {
-            if (!column.rowCustomGroup) continue;
-            currentGroup = currentGroup.find( g => g.group_by === row[column.field]);
-            if (currentGroup) {
+      const res = gridRef.current?.api.applyTransaction({
+        add: newRows,
+        addIndex
+      });
 
-              for (let column of columnDefs) {
-                if (!column.rowSum) continue;
-                if (!currentGroup[column.field]) currentGroup[column.field] = 0;
-                currentGroup[column.field] += row[column.field];
-              }
-
-              currentGroup = currentGroup.children;
-            } 
-          }
-          
-          if (currentGroup) {
-            currentGroup.push(row);
-          } else {
-            gridRowData.push(parseData([row], columnDefs));
-          }
-        }
-      }
-       gridRef.current.api.refreshCells({force: true});
+      return res;
     },
 
     updateRows(updateRows) {
-     gridRef.current?.api.updateRowData({
-       update: updateRows
-     });
+      const res = gridRef.current?.api.applyTransaction({
+        update: updateRows
+      });
+      
+      return res;
     },
 
     removeSeleted() {
       const selectedData = gridRef.current.api.getSelectedRows();
-      gridRef.current.api.updateRowData({
+      const res = gridRef.current.api.applyTransaction({
         remove: selectedData,
       });
+
+      return res;
     },
 
     getSelectedRows() {
@@ -139,13 +125,12 @@ export const GridExample = React.forwardRef((props, ref) => {
 
     expandAll(value) {
       gridRef.current?.api.forEachNode(function (node) {
-        if (node.group) {
-          node.setExpanded(value);
-        }
+        node.setExpanded(value);
       });
     }
   }));
 
+  const gridRowData = parseData(rowData, columnDefs);
 
   defaultColDef = useMemo(() => {
     return {
@@ -154,50 +139,47 @@ export const GridExample = React.forwardRef((props, ref) => {
       sortable: true,
       editable: false,
       unSortIcon: true,
-      
-      filter: true,
-      // filterParams: {
-      //   filterOptions: ["过滤"],
-      //   maxNumConditions: 1,
-      //   debounceMs: 1000,
-      // },
-
       ...defaultColDef,
     };
   }, []);
 
-  autoGroupColumnDef = {
-    field: "group_by",
-    headerName: "组",
-    checkboxSelection: true,
-    headerCheckboxSelection: true,
-
-    cellRendererParams: {
-      suppressCount: true,
-      // checkbox: true,
-    },
-
-    cellRenderer: 'agGroupCellRenderer',
-    valueGetter: (param) => {
-      if (!param.data.group) return '';
-      return `${param.data[param.colDef.field]} (${param.data.children?.length || 0})`; 
-    },
-    ...autoGroupColumnDef
-  };
-
-  const ColumnDefs = [autoGroupColumnDef, ...columnDefs].map( r => ({...r}));
-  for (let column of ColumnDefs) {
-    delete column.rowCustomGroup;
-    delete column.rowSum;
-  }
-
-  const getNodeChildDetails = (node) => {
+  autoGroupColumnDef = useMemo(() => {
     return {
-      group: node.group,
-      children: node.children,
-      expanded: node.expanded,
+      field: "group_by",
+      headerName: "组",
+      // checkboxSelection: true,
+      headerCheckboxSelection: true,
+
+      filter: true,
+      filterParams: {
+        filterOptions: ["过滤"],
+        maxNumConditions: 1,
+        debounceMs: 1000,
+      },
+
+      cellRendererParams: {
+        checkbox: true
+      },
+      cellRenderer: 'agGroupCellRenderer',
+
+      valueGetter: (param) => {
+        return !param.colDef.cellRendererParams.supperessCount ? `${param.data[param.colDef.field]} (${param.data.children?.length || 0})` : `${param.value}`;
+      },
+      
+      ...autoGroupColumnDef
     };
-  }
+  }, []);
+
+  const gridOptions = {
+    getNodeChildDetails: (node) => {
+      console.log(node)
+      return {
+        group: node.group,
+        children: node.children,
+        expanded: node.expanded,
+      };
+    },
+  };
 
   const isRowSelectable = (node) => {
     return true;
@@ -207,24 +189,24 @@ export const GridExample = React.forwardRef((props, ref) => {
     <div
       style={style}
       className={
-        "ag-theme-balham"
+        "ag-theme-quartz-dark"
       }
     >
       <AgGridReact
         ref={gridRef}
+        gridOptions={gridOptions}
         rowData={gridRowData}
         getRowId={getRowId}
-        columnDefs={ColumnDefs}
+        columnDefs={columnDefs}
         autoGroupColumnDef={autoGroupColumnDef}
         defaultColDef={defaultColDef}
         rowSelection={'multiple'}
-        animateRows={true}
+        treeData={true}
         groupSelectsChildren={true}
-        // rowMultiSelectWithClick={true}
+        rowMultiSelectWithClick={true}
         onGridReady={onGridReady}
         onSelectionChanged={onSelectionChanged}
         isRowSelectable={isRowSelectable}
-        getNodeChildDetails={getNodeChildDetails}
       />
     </div>
   );

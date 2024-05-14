@@ -16,31 +16,16 @@ function App() {
       .then((resp) => resp.json())
       .then((data) => {
         setRowData(data);
+
+        setTimeout(() => {
+          // gridRef.current?.addRows(data);
+        }, 1000) 
       });
   }, []);
 
 
   const onAddRows = () => {
     gridRef.current?.addRows(rowData);
-  }
-
-  const onExpandedAll = () => {
-    gridRef.current.expandAll(true);
-  }
-  
-  const onCloseExpandedAll = () => {
-    gridRef.current.expandAll(false);
-  }
-
-  const getRowData = () => {
-    const rowData = gridRef.current.getRowData();
-    window.alert(JSON.stringify(rowData))
-  }
-
-
-  const getSelectedRows = () => {
-    const selectedRows = gridRef.current.getSelectedRows();
-    alert(JSON.stringify(selectedRows))
   }
 
   const onSelectionChanged = (event) => {
@@ -50,6 +35,7 @@ function App() {
   const gridStyle = useMemo(() => ({ width: "100%", height: '90vh' }), []);
 
   const [columnDefs] = useState([
+    { field: 'group_by', headerName: '组', headerCheckboxSelection: true, checkboxSelection: true},
     { field: "country", checkboxSelection: true, headerCheckboxSelection: true, rowCustomGroup: true, hide: true}, 
     { field: "year", headerName:'年', rowCustomGroup: true, hide: true },
     { field: "sport" },
@@ -72,10 +58,6 @@ function App() {
   return (
     <div className="App">
       <button onClick={onAddRows}> Add Rows</button>
-      <button onClick={onExpandedAll}> Expand All </button>
-      <button onClick={onCloseExpandedAll}> Close Expand All </button>
-      <button onClick={getRowData}> Get Row Data </button>
-      <button onClick={getSelectedRows}> Get Selected Rows </button>
       <GridExample
         ref={gridRef}
         style={gridStyle}
