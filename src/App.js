@@ -7,6 +7,16 @@ import React, {
 
 import { GridExample } from './ag-grid';
 
+function getUID() {
+  var dt = new Date().getTime(); // 当前时间戳
+  var uuid = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    var r = (dt + Math.random()*16)%16 | 0;
+    dt = Math.floor(dt/16);
+    return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
+  });
+  return uuid;
+}
+
 function App() {
   const gridRef = useRef(null);
   const [rowData, setRowData] = useState([]);
@@ -15,6 +25,9 @@ function App() {
     fetch("https://www.ag-grid.com/example-assets/olympic-winners.json")
       .then((resp) => resp.json())
       .then((data) => {
+        for (let row of data) {
+          row.id = getUID();
+        }
         setRowData(data);
       });
   }, []);
@@ -47,6 +60,13 @@ function App() {
     console.log(event.api.getSelectedRows())
   }
 
+  const updateOneRow = () => {
+    const rowData = gridRef.current.getRowData();
+    rowData[0].sport = getUID();
+    
+    gridRef.current.updateRows([rowData[0]]);
+  }
+
   const gridStyle = useMemo(() => ({ width: "100%", height: '90vh' }), []);
 
   const [columnDefs] = useState([
@@ -76,6 +96,7 @@ function App() {
       <button onClick={onCloseExpandedAll}> Close Expand All </button>
       <button onClick={getRowData}> Get Row Data </button>
       <button onClick={getSelectedRows}> Get Selected Rows </button>
+      <button onClick={updateOneRow}>Update One Row</button>
       <GridExample
         ref={gridRef}
         style={gridStyle}
