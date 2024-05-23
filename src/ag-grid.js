@@ -152,7 +152,7 @@ export const GridExample = React.forwardRef((props, ref) => {
 
     updateRows(updateRows) {
       gridRef.current?.api.forEachNode(function (node) {
-        const row  = updateRows.find( row => getRowId(row) === node.data._id);
+        const row  = updateRows.find( row =>  getRowId(row) === node.data._id || row._id === node.data._id);
         if (row) {
           for (let key of Object.keys(row)) {
             node.data[key] = row[key];
