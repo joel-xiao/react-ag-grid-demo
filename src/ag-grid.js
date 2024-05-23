@@ -102,7 +102,7 @@ export const GridExample = React.forwardRef((props, ref) => {
           }
           
           if (currentGroup) {
-            currentGroup.push(row);
+            currentGroup.unshift(row);
           } else {
             gridRowData.push(parseData([row], columnDefs));
           }
